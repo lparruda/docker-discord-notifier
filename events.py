@@ -1,87 +1,115 @@
+import os
+import sys
 from datetime import datetime
 import docker
 import requests
 
-# URL do Webhook obtido no Discord
-DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1552349788635136020/hx0hRuu11BbJfhmqsbmk-kO8MSGnqiNTOkYS5aLB2NTDJGvFMmTpkFkCyLLuUyTROfPi'  #[cite: 19]
+# 1. Carregar a URL do webhook a partir da variável de ambiente
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
+
+if not DISCORD_WEBHOOK_URL:
+    print(
+        "ERRO: A variável de ambiente DISCORD_WEBHOOK_URL não está configurada!\n"
+        "Configure-a antes de iniciar o script executando:\n"
+        "  export DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...'",
+        file=sys.stderr
+    )
+    sys.exit(1)
 
 
 def enviar_alerta_discord(nome, container_id, imagem, exit_code, data_hora):
-    """Envia um cartão formatado (Embed) para o canal do Discord."""
+    """Envia uma notificação estruturada (Embed) para o canal do Discord via Webhook."""
+    # Define a cor e o título consoante o código de saída
+    if exit_code == 0:
+        cor = 0x2ECC71  # Verde (Sucesso)
+        titulo = "🟢 Contentor Finalizado (Sucesso)"
+    else:
+        cor = 0xE74C3C  # Vermelho (Falha / Erro)
+        titulo = "🔴 Contentor Finalizado com Erro"
 
-    # Cor vermelha (0xE74C3C) para erros (exit_code != 0) e laranja/verde se for saída limpa
-    cor_alerta = 0xE74C3C if exit_code != '0' else 0x2ECC71
-    status_titulo = (
-        'Contentor Parou com Erro'
-        if exit_code != '0'
-        else 'Contentor Finalizado (Sucesso)'
-    )
-
-    embed = {
-        'title': status_titulo,
-        'color': cor_alerta,
-        'fields': [
-            {'name': 'Nome do Contentor', 'value': f'`{nome}`', 'inline': True},
+    payload = {
+        "embeds": [
             {
-                'name': 'ID',
-                'value': f'`{container_id}`',
-                'inline': True,
-            },
-            {
-                'name': 'Código de Saída (Exit Code)',
-                'value': f'**{exit_code}**',
-                'inline': True,
-            },
-            {
-                'name': 'Imagem Base',
-                'value': f'`{imagem}`',
-                'inline': True,
-            },
-            {
-                'name': 'Data e Hora',
-                'value': data_hora,
-                'inline': True,
-            },
-        ],
-        'footer': {'text': 'Docker Event Monitor • Alerta Automático'},
-        'timestamp': datetime.utcnow().isoformat(),
+                "title": titulo,
+                "color": cor,
+                "fields": [
+                    {
+                        "name": "Nome do Contentor",
+                        "value": f"`{nome}`",
+                        "inline": True
+                    },
+                    {
+                        "name": "ID",
+                        "value": f"`{container_id[:12]}`",
+                        "inline": True
+                    },
+                    {
+                        "name": "Código de Saída (Exit Code)",
+                        "value": f"`{exit_code}`",
+                        "inline": True
+                    },
+                    {
+                        "name": "Imagem Base",
+                        "value": f"`{imagem}`",
+                        "inline": True
+                    },
+                    {
+                        "name": "Data e Hora",
+                        "value": data_hora,
+                        "inline": True
+                    }
+                ],
+                "footer": {
+                    "text": "Docker Event Monitor • Alerta Automático"
+                }
+            }
+        ]
     }
 
-    payload = {'embeds': [embed]}
-
     try:
-        response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=5)
+        response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
         response.raise_for_status()
-        print(f'[OK] Alerta do contentor {nome} enviado com sucesso ao Discord.')
-    except requests.exceptions.RequestException as erro:
-        print(f'[ERRO] Falha ao comunicar com o Discord: {erro}')
+        print(f"[+] Alerta enviado para o Discord | Contentor: {nome} | Exit Code: {exit_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"[-] Erro ao enviar notificação para o Discord: {e}", file=sys.stderr)
 
 
-def iniciar_monitorizacao():
-    client = docker.DockerClient(base_url='unix://var/run/docker.sock')
-    print('Monitorização ativa. A escutar eventos "die" do Docker...')
+def monitorar_eventos():
+    """Conecta ao daemon do Docker e monitora eventos de término de contentores em tempo real."""
+    try:
+        client = docker.from_env()
+        # Testa a conectividade com o daemon
+        client.ping()
+        print("[*] Conectado ao Docker Daemon com sucesso.")
+        print("[*] Aguardando eventos de contentores (die)... Pressione Ctrl+C para encerrar.")
+    except Exception as e:
+        print(f"[-] Falha ao conectar ao Docker Daemon: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    for event in client.events(decode=True, filters={'event': 'die'}):
-        actor_attrs = event.get('Actor', {}).get('Attributes', {})
+    # Filtra apenas eventos do tipo container e ação 'die' (término do processo)
+    for event in client.events(decode=True, filters={"type": "container", "event": "die"}):
+        actor = event.get("Actor", {})
+        attributes = actor.get("Attributes", {})
 
-        container_id = event['Actor']['ID'][:12]
-        container_name = actor_attrs.get('name', 'desconhecido')
-        imagem = actor_attrs.get('image', 'desconhecida')
-        exit_code = actor_attrs.get('exitCode', '1')
+        nome = attributes.get("name", "Desconhecido")
+        container_id = event.get("id", "N/A")
+        imagem = attributes.get("image", "Desconhecida")
+        
+        try:
+            exit_code = int(attributes.get("exitCode", 0))
+        except (ValueError, TypeError):
+            exit_code = -1
 
-        # Formatação do timestamp para formato legível
-        data_formatada = datetime.fromtimestamp(event['time']).strftime(
-            '%d/%m/%Y às %H:%M:%S'
-        )
+        # Formata o timestamp do evento para leitura humana
+        timestamp = event.get("time", 0)
+        data_hora = datetime.fromtimestamp(timestamp).strftime("%d/%m/%Y às %H:%M:%S")
 
-        enviar_alerta_discord(
-            nome=container_name,
-            container_id=container_id,
-            imagem=imagem,
-            exit_code=exit_code,
-            data_hora=data_formatada,
-        )
+        enviar_alerta_discord(nome, container_id, imagem, exit_code, data_hora)
 
 
-if __name__ == '__main__':
-    iniciar_monitorizacao()
+if __name__ == "__main__":
+    try:
+        monitorar_eventos()
+    except KeyboardInterrupt:
+        print("\n[*] Monitoramento finalizado pelo utilizador.")
+        sys.exit(0)
