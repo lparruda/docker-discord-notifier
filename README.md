@@ -1,33 +1,34 @@
 # 🐳 Docker Event Discord Notifier
 
-Aplicação em Python para monitoramento de eventos do Docker Daemon em tempo real via Docker Socket API. A aplicação captura o término de execução de contêineres e dispara notificações formatadas (Discord Rich Embeds) diretamente para um canal via Webhook.
+Aplicação em Python concebida para monitorizar o ciclo de vida de contentores Docker em tempo real através da Docker Socket API. A ferramenta interceta eventos de paragem/término de contentores e envia notificações formatadas (Discord Rich Embeds) diretamente para um canal através de Webhook.
 
 ---
 
-## 📌 Funcionalidades
+## 🚀 Funcionalidades
 
-- **Monitoramento em Tempo Real:** Captura eventos de encerramento (`die`) emitidos pelo Docker Daemon.
-- **Alertas Visuais Estruturados:**
-  - 🟢 **Verde (`Exit Code 0`):** Contêiner finalizado com sucesso.
-  - 🔴 **Vermelho (`Exit Code != 0`):** Contêiner finalizado com erro ou falha.
-- **Detalhamento do Evento:** Nome do contêiner, ID curto (12 caracteres), imagem base utilizada, código de saída e data/hora do evento.
-- **Segurança:** Configuração da URL do Webhook desacoplada do código fonte via variável de ambiente.
+- **Monitorização em Tempo Real:** Captura eventos de encerramento (`die`) emitidos pelo Docker Daemon.
+- **Alertas Estruturados (Discord Rich Embeds):**
+  - 🟢 **Verde (`Exit Code 0`):** Contentor finalizado com sucesso.
+  - 🔴 **Vermelho (`Exit Code != 0`):** Contentor finalizado com erro ou falha.
+- **Metadados Detalhados:** Exibe o Nome do Contentor, ID Curto (12 carateres), Imagem Base utilizada, Código de Saída e Data/Hora da ocorrência.
+- **Segurança de Credenciais:** Configuração do Webhook desacoplada do código fonte via variável de ambiente.
 
 ---
 
 ## 📋 Pré-requisitos
 
-Antes de iniciar, certifique-se de ter instalado no sistema:
+Antes de iniciar a instalação, certifique-se de que o ambiente cumpre os seguintes requisitos:
 
-- **Docker:** Serviço em execução e usuário atual com permissão para executar comandos Docker sem `sudo` (pertencente ao grupo `docker`).
-- **Python 3.10 ou superior:** Com o módulo `venv` e o gerenciador `pip`.
-- **Canal no Discord:** Com um Webhook criado e URL copiada.
+- **Docker:** Serviço em execução e o utilizador atual com permissões para interagir com o daemon (membro do grupo `docker`).
+- **Python 3.10 ou superior:** Com os módulos `venv` e `pip` disponíveis.
+- **Servidor Discord:** Um canal de texto com um Webhook configurado e a respetiva URL copiada (**Definições do Canal > Integrações > Webhooks**).
 
 ---
 
-## 🚀 Instalação e Execução
+## 🔧 Instalação e Execução
 
 ### 1. Clonar o repositório
+Clone o código-fonte limpo para a sua máquina e entre na pasta:
 ```bash
 git clone https://github.com/lparruda/docker-discord-notifier.git
 cd docker-discord-notifier
