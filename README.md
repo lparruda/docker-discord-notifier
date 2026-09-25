@@ -105,29 +105,3 @@ docker run --rm busybox sh -c "exit 0"
 ```
 
 ---
-
-## ⚠️ Resolução de Problemas (Troubleshooting)
-
-**`400 Client Error: Bad Request for url: .../SEU_ID/SEU_TOKEN`**
-A variável `DISCORD_WEBHOOK_URL` foi exportada com os dados de exemplo. Encerre o script (`Ctrl + C`), exporte a URL completa obtida no Discord e volte a executar `python events.py`.
-
-**`-bash: syntax error near unexpected token '('`**
-O comando `git clone` foi colado com a sintaxe de link Markdown (`[url](url)`). Execute apenas o comando com o endereço limpo:
-`git clone https://github.com/lparruda/docker-discord-notifier.git`
-
-**`Permission denied: '/var/run/docker.sock'`**
-O utilizador atual não tem privilégios para aceder à socket do Docker. Para corrigir em distribuições Linux/WSL:
-
-```bash
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-**`ERRO: A variável de ambiente DISCORD_WEBHOOK_URL não está configurada!`**
-A variável não foi exportada no terminal ativo. Certifique-se de executar o comando `export DISCORD_WEBHOOK_URL="..."` na mesma sessão onde executa o script Python.
-
----
-
-## 📄 Licença
-
-Distribuído sob a licença MIT. Consulte o ficheiro `LICENSE` para mais detalhes.
