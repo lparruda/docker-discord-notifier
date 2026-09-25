@@ -17,6 +17,18 @@ if not DISCORD_WEBHOOK_URL:
     sys.exit(1)
 
 
+def mascarar_webhook(texto: str) -> str:
+    """Remove o ID/Token do Webhook de qualquer string antes de ir para os logs."""
+    if "/webhooks/" in texto:
+        base, _ = texto.split("/webhooks/", 1)
+        # Corta tudo depois de '/webhooks/' até o próximo espaço (se houver mais texto na mensagem)
+        resto = texto.split("/webhooks/", 1)[1]
+        resto_apos_token = resto.split(" ", 1)
+        sufixo = f" {resto_apos_token[1]}" if len(resto_apos_token) > 1 else ""
+        return f"{base}/webhooks/***MASKED***{sufixo}"
+    return texto
+
+
 def enviar_alerta_discord(nome, container_id, imagem, exit_code, data_hora):
     """Envia uma notificação estruturada (Embed) para o canal do Discord via Webhook."""
     # Define a cor e o título consoante o código de saída
@@ -71,7 +83,9 @@ def enviar_alerta_discord(nome, container_id, imagem, exit_code, data_hora):
         response.raise_for_status()
         print(f"[+] Alerta enviado para o Discord | Contentor: {nome} | Exit Code: {exit_code}")
     except requests.exceptions.RequestException as e:
-        print(f"[-] Erro ao enviar notificação para o Discord: {e}", file=sys.stderr)
+        # A mensagem de erro do requests inclui a URL completa da requisição (com o
+        # ID/Token do Webhook). Mascaramos antes de logar para não expor a credencial.
+        print(f"[-] Erro ao enviar notificação para o Discord: {mascarar_webhook(str(e))}", file=sys.stderr)
 
 
 def monitorar_eventos():
@@ -92,7 +106,8 @@ def monitorar_eventos():
         attributes = actor.get("Attributes", {})
 
         nome = attributes.get("name", "Desconhecido")
-        container_id = event.get("id", "N/A")
+        # O ID do contentor vem em Actor.ID (não em event["id"], que costuma vir vazio/N.A.)
+        container_id = actor.get("ID", "N/A")
         imagem = attributes.get("image", "Desconhecida")
         
         try:
