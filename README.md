@@ -29,5 +29,5 @@ Antes de iniciar, certifique-se de ter instalado no sistema:
 
 ### 1. Clonar o repositório
 ```bash
-git clone [https://github.com/lparruda/docker-discord-notifier.git](https://github.com/lparruda/docker-discord-notifier.git)
+git clone https://github.com/lparruda/docker-discord-notifier.git
 cd docker-discord-notifier
